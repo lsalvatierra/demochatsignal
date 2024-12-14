@@ -1,0 +1,103 @@
+﻿@page
+@model demochatsignal.Pages.IndexModel
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat con SignalR</title>
+    <!-- Cargar Bootstrap desde CDN -->
+    <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Cargar la biblioteca de SignalR desde CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <!-- Cargar jQuery desde CDN -->
+    <script src="~/lib/jquery/dist/jquery.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <!-- Login -->
+        <div id="loginDiv" class="card p-4 shadow">
+            <h4 class="text-center">Bienvenido al Chat</h4>
+            <div class="form-group mb-3">
+                <label for="userNameInput" class="form-label">Nombre</label>
+                <input type="text" id="userNameInput" class="form-control" placeholder="Ingresa tu nombre">
+            </div>
+            <button id="loginButton" class="btn btn-primary w-100">Entrar al chat</button>
+        </div>
+
+        <!-- Chat -->
+        <div id="chatDiv" class="card p-4 shadow mt-3" style="display: none;">
+            <h4 class="text-center">Sala de Chat</h4>
+            <div class="mb-3">
+                <input type="text" id="messageInput" class="form-control" placeholder="Escribe tu mensaje aquí">
+            </div>
+            <button id="sendButton" class="btn btn-success w-100 mb-3">Enviar</button>
+            <ul id="messagesList" class="list-group"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Crear conexión con SignalR
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .build();
+
+        let isRegistered = false;
+
+        // Registrar eventos de SignalR
+        connection.on("ReceiveMessage", (user, message) => {
+            const li = $("<li>").addClass("list-group-item").text(`${user}: ${message}`);
+            $("#messagesList").append(li);
+        });
+
+        connection.on("UserConnected", (user) => {
+            const li = $("<li>").addClass("list-group-item text-success").text(`${user} se unió al chat.`);
+            $("#messagesList").append(li);
+        });
+
+        connection.on("UserDisconnected", (user) => {
+            const li = $("<li>").addClass("list-group-item text-danger").text(`${user} salió del chat.`);
+            $("#messagesList").append(li);
+        });
+
+        // Iniciar la conexión
+        connection.start().catch(err => console.error(err.toString()));
+
+        // Manejar el clic del botón de login
+        $("#loginButton").click(() => {
+            const userName = $("#userNameInput").val().trim();
+
+            if (userName) {
+                connection.invoke("RegisterUser", userName).catch(err => console.error(err.toString()));
+                isRegistered = true;
+
+                // Mostrar la interfaz del chat
+                $("#loginDiv").hide();
+                $("#chatDiv").show();
+            } else {
+                alert("Por favor, ingresa tu nombre.");
+            }
+        });
+
+        // Manejar el clic del botón de enviar mensaje
+        $("#sendButton").click(() => {
+            const message = $("#messageInput").val().trim();
+
+            if (isRegistered && message) {
+                connection.invoke("SendMessage", message).catch(err => console.error(err.toString()));
+                $("#messageInput").val("");
+            }
+        });
+
+        // Manejar la tecla Enter para enviar mensajes
+        $("#messageInput").keypress((e) => {
+            if (e.which === 13) { // Código de tecla Enter
+                $("#sendButton").click();
+            }
+        });
+    </script>
+
+    <!-- Cargar Bootstrap JS desde CDN -->
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.js"></script>
+</body>
+</html>
+
